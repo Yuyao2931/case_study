@@ -1,0 +1,120 @@
+---
+title: "case_study"
+author: "Yuyao"
+date: "2026-10-13"
+output: github_document
+---
+
+```{r}
+library(p8105.datasets)
+library(tidyverse)
+library(leaflet)
+
+data("nyc_airbnb")
+```
+
+## Some questions
+* where are the most expensive airbnbs in nyc?
+* which neighborhood has the highest concentration?
+* which one is the cheapest?
+* which airbnb hosts are the most / best reviewed?
+* has the number increased or decreased over time?
+* do airbnbs affect rent in their neighborhoods / buildings?
+* do desriptions correlate with price?
+* what about text reviews?
+
+```{r}
+nyc_airbnb = nyc_airbnb |> 
+  mutate(stars = review_scores_location / 2)
+```
+
+```{r}
+nyc_airbnb |> 
+  filter(neighbourhood_group == "Manhattan") |> 
+  count(room_type, neighbourhood_group) |> 
+  pivot_wider(
+    names_from = room_type,
+    values_from = n
+  )
+
+```
+
+## price
+
+```{r}
+nyc_airbnb |> 
+  group_by(neighbourhood_group) |> 
+  mutate(price_rank = min_rank(price)) |> 
+  filter(price_rank < 3)
+
+```
+
+```{r}
+nyc_airbnb |> 
+  filter(price < 1000) |> 
+  ggplot(aes(x = price)) + 
+  geom_histogram() +
+  facet_grid(room_type ~ neighbourhood_group)
+```
+Price on average
+
+```{r}
+nyc_airbnb |> 
+  group_by(room_type, neighbourhood_group) |> 
+  summarize(
+    mean_price = mean(price)
+    )|> 
+      pivot_wider(
+    names_from = room_type,
+    values_from = mean_price
+  )
+```
+## some host stuff
+
+```{r}
+nyc_airbnb |> 
+  filter(calculated_host_listings_count > 10)
+```
+
+```{r}
+nyc_airbnb |> 
+  filter(neighbourhood_group == "Manhattan") |> 
+  filter(price < 500) |> 
+  filter(room_type != "Shared room") |> 
+  ggplot(aes(x = neighbourhood, y = price))+
+  geom_boxplot() +
+  facet_grid(. ~ room_type) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+
+```
+
+## visualize price some more
+
+```{r}
+nyc_airbnb |> 
+  filter(neighbourhood_group == "Manhattan") |> 
+  filter(room_type == "Entire home/apt") |> 
+  filter(price < 500) |> 
+  ggplot(aes(x = lat, y = long, color = price))+
+  geom_point(alpha = .5)
+```
+
+make a leaflet map
+```{r}
+pal = colorNumeric(
+  palette = "viridis",
+  domain = 1:500
+)
+
+nyc_airbnb |> 
+  filter(neighbourhood_group == "Manhattan") |> 
+  filter(room_type == "Entire home/apt") |> 
+  filter(price < 500) |> 
+  sample_n(50) |> 
+  leaflet() |> 
+  addTiles() |> 
+  addCircleMarkers(~long, ~lat, color = ~pal(price), radius = 0.5)
+  
+
+```
+
